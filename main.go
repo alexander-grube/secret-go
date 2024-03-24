@@ -4,7 +4,6 @@ import (
 	"alexander-grube/secret-go/db"
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -50,14 +49,9 @@ func main() {
 
 func (h *Handlers) initRouter() *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", h.helloWorld)
-	mux.HandleFunc("POST /secret", h.createSecret)
-	mux.HandleFunc("GET /secret/{id}", h.getSecret)
+	mux.HandleFunc("POST /secret-message/secret", h.createSecret)
+	mux.HandleFunc("GET /secret-message/secret/{id}", h.getSecret)
 	return mux
-}
-
-func (h *Handlers) helloWorld(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, World!")
 }
 
 func (h *Handlers) createSecret(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +79,7 @@ func (h *Handlers) getSecret(w http.ResponseWriter, r *http.Request) {
 	}
 	message, err := h.Queries.GetSecret(context.Background(), uuid)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
