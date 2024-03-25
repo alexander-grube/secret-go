@@ -114,11 +114,22 @@ func (h *Handlers) getMessagesOfUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	userDTO := UserDTO{
+		ID:       int32(userIDParsed),
+		Username: "test",
+		Messages: messages,
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(messages)
+	json.NewEncoder(w).Encode(userDTO)
 }
 
 // secret message struct
 type PostSecretMessage struct {
 	Message string `json:"message"`
+}
+
+type UserDTO struct {
+	ID       int32  `json:"id"`
+	Username string `json:"username"`
+	Messages []db.GetMessagesOfUserRow `json:"messages"`
 }
