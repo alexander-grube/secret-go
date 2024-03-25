@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -51,6 +52,7 @@ func (h *Handlers) initRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /secret-message/secret", h.createSecret)
 	mux.HandleFunc("GET /secret-message/secret/{id}", h.getSecret)
+	mux.HandleFunc("GET /secret-message/user/{id}", h.getMessagesOfUser)
 	return mux
 }
 
@@ -61,7 +63,10 @@ func (h *Handlers) createSecret(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	message, err := h.Queries.CreateSecret(context.Background(), secret.Message)
+	message, err := h.Queries.CreateSecret(context.Background(), db.CreateSecretParams{
+		Message: secret.Message,
+		UserID:  1,
+	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -90,6 +95,27 @@ func (h *Handlers) getSecret(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(message)
+}
+
+func (h *Handlers) getMessagesOfUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	// convert string to int32
+	userIDParsed, err := strconv.Atoi(userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	messages, err := h.Queries.GetMessagesOfUser(context.Background(), int32(userIDParsed))
+	if messages == nil {
+		http.Error(w, "No messages found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
 }
 
 // secret message struct

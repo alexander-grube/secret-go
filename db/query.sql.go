@@ -12,13 +12,29 @@ import (
 )
 
 const createSecret = `-- name: CreateSecret :one
-INSERT INTO secret_message (message) VALUES ($1) RETURNING id, message
+INSERT INTO secret_message (message, user_id) VALUES ($1, $2) RETURNING id, message, user_id
 `
 
-func (q *Queries) CreateSecret(ctx context.Context, message string) (SecretMessage, error) {
-	row := q.db.QueryRow(ctx, createSecret, message)
+type CreateSecretParams struct {
+	Message string `json:"message"`
+	UserID  int32  `json:"user_id"`
+}
+
+func (q *Queries) CreateSecret(ctx context.Context, arg CreateSecretParams) (SecretMessage, error) {
+	row := q.db.QueryRow(ctx, createSecret, arg.Message, arg.UserID)
 	var i SecretMessage
-	err := row.Scan(&i.ID, &i.Message)
+	err := row.Scan(&i.ID, &i.Message, &i.UserID)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO public.user (username) VALUES ($1) RETURNING id, username
+`
+
+func (q *Queries) CreateUser(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, username)
+	var i User
+	err := row.Scan(&i.ID, &i.Username)
 	return i, err
 }
 
@@ -31,13 +47,62 @@ func (q *Queries) DeleteSecret(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM public.user WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const getMessagesOfUser = `-- name: GetMessagesOfUser :many
+SELECT id, message FROM secret_message WHERE user_id = $1
+`
+
+type GetMessagesOfUserRow struct {
+	ID      pgtype.UUID `json:"id"`
+	Message string      `json:"message"`
+}
+
+func (q *Queries) GetMessagesOfUser(ctx context.Context, userID int32) ([]GetMessagesOfUserRow, error) {
+	rows, err := q.db.Query(ctx, getMessagesOfUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMessagesOfUserRow
+	for rows.Next() {
+		var i GetMessagesOfUserRow
+		if err := rows.Scan(&i.ID, &i.Message); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSecret = `-- name: GetSecret :one
-SELECT id, message FROM secret_message WHERE id = $1
+SELECT id, message, user_id FROM secret_message WHERE id = $1
 `
 
 func (q *Queries) GetSecret(ctx context.Context, id pgtype.UUID) (SecretMessage, error) {
 	row := q.db.QueryRow(ctx, getSecret, id)
 	var i SecretMessage
-	err := row.Scan(&i.ID, &i.Message)
+	err := row.Scan(&i.ID, &i.Message, &i.UserID)
+	return i, err
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id, username FROM public.user WHERE id = $1
+`
+
+func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
+	var i User
+	err := row.Scan(&i.ID, &i.Username)
 	return i, err
 }
