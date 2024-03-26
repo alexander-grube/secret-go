@@ -3,12 +3,12 @@ module alexander-grube/secret-go
 go 1.22.1
 
 require (
+	github.com/Nerzal/gocloak/v13 v13.9.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/joho/godotenv v1.5.1
 )
 
 require (
-	github.com/Nerzal/gocloak/v13 v13.9.0 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect

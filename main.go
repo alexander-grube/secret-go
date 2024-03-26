@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/jackc/pgx/v5"
@@ -19,22 +20,42 @@ type Handlers struct {
 	Queries *db.Queries
 }
 
+type Logger struct {
+	handler http.Handler
+}
+
+func (l *Logger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	l.handler.ServeHTTP(w, r)
+	log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
+}
+
+func NewLogger(handler http.Handler) *Logger {
+	return &Logger{handler: handler}
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	keycloakClient := gocloak.NewClient(os.Getenv("KEYCLOAK_URL"))
-
 	ctx := context.Background()
 
-	keycloakToken, err := keycloakClient.LoginClient(ctx, os.Getenv("KEYCLOAK_CLIENT_ID"), os.Getenv("KEYCLOAK_CLIENT_SECRET"), os.Getenv("KEYCLOAK_REALM"))
-	if err != nil {
-		log.Fatalf("error logging in to keycloak: %v", err)
-	}
+	keycloakEnabled := os.Getenv("KEYCLOAK_ENABLED")
 
-	log.Printf("Keycloak token: %s", keycloakToken.AccessToken)
+	if keycloakEnabled == "true" {
+
+		keycloakClient := gocloak.NewClient(os.Getenv("KEYCLOAK_URL"))
+
+		keycloakToken, err := keycloakClient.LoginClient(ctx, os.Getenv("KEYCLOAK_CLIENT_ID"), os.Getenv("KEYCLOAK_CLIENT_SECRET"), os.Getenv("KEYCLOAK_REALM"))
+		if err != nil {
+			log.Fatalf("error logging in to keycloak: %v", err)
+		}
+
+		log.Printf("Keycloak token: %s", keycloakToken.AccessToken)
+
+	}
 
 	conn, err := pgx.Connect(ctx, os.Getenv("DATABASE_URL"))
 
@@ -58,12 +79,14 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, handlers.initRouter()))
 }
 
-func (h *Handlers) initRouter() *http.ServeMux {
+func (h *Handlers) initRouter() *Logger {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /secret-message/secret", h.createSecret)
 	mux.HandleFunc("GET /secret-message/secret/{id}", h.getSecret)
 	mux.HandleFunc("GET /secret-message/user/{id}", h.getMessagesOfUser)
-	return mux
+
+	wrappedMux := NewLogger(mux)
+	return wrappedMux
 }
 
 func (h *Handlers) createSecret(w http.ResponseWriter, r *http.Request) {
