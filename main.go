@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/Nerzal/gocloak/v13"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/joho/godotenv"
@@ -24,7 +25,16 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
+	keycloakClient := gocloak.NewClient(os.Getenv("KEYCLOAK_URL"))
+
 	ctx := context.Background()
+
+	keycloakToken, err := keycloakClient.LoginClient(ctx, os.Getenv("KEYCLOAK_CLIENT_ID"), os.Getenv("KEYCLOAK_CLIENT_SECRET"), os.Getenv("KEYCLOAK_REALM"))
+	if err != nil {
+		log.Fatalf("error logging in to keycloak: %v", err)
+	}
+
+	log.Printf("Keycloak token: %s", keycloakToken.AccessToken)
 
 	conn, err := pgx.Connect(ctx, os.Getenv("DATABASE_URL"))
 
@@ -129,7 +139,7 @@ type PostSecretMessage struct {
 }
 
 type UserDTO struct {
-	ID       int32  `json:"id"`
-	Username string `json:"username"`
+	ID       int32                     `json:"id"`
+	Username string                    `json:"username"`
 	Messages []db.GetMessagesOfUserRow `json:"messages"`
 }
