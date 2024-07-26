@@ -11,10 +11,4 @@ import (
 type SecretMessage struct {
 	ID      pgtype.UUID `json:"id"`
 	Message string      `json:"message"`
-	UserID  int32       `json:"user_id"`
-}
-
-type User struct {
-	ID       int32  `json:"id"`
-	Username string `json:"username"`
 }
